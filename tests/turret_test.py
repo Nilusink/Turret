@@ -9,18 +9,19 @@ import math
 import time
 import cv2
 
-
 in1 = 4
 in2 = 17
 in3 = 23
 in4 = 24
 
+
 # careful lowering this, at some point you run into the mechanical limitation of how quick your motor can move
-step_sleep = 0.002
+step_sleep = 0.0015
 
-step_count = 4096 # 5.625*(1/64) per step, 4096 steps is 360°
+step_count = 4096  # 5.625*(1/64) per step, 4096 steps is 360°
 
-direction = False # True for clockwise, False for counter-clockwise
+direction = False  # True for clockwise, False for counter-clockwise
+
 
 # defining stepper motor sequence (found in documentation http://www.4tronix.co.uk/arduino/Stepper-Motors.php)
 step_sequence = [[1,0,0,1],
