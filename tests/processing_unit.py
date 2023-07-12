@@ -141,7 +141,6 @@ try:
     while True:
         # Read the length of the image as a 32-bit unsigned int
         image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-        print("got image")
 
         # Construct a stream to hold the image data and read the image data from the connection
         image_stream = io.BytesIO()
