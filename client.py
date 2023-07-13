@@ -19,6 +19,7 @@ def control_callback(data) -> None:
     x, y = data["x"], data["y"]
 
     if data["mode"] == "off":  # offset
+        turret.resume()
         turret.move_steps_from_current(x, y)
 
     elif data["mode"] == "vel":  # velocity
@@ -27,6 +28,8 @@ def control_callback(data) -> None:
 
         else:
             turret.move_velocity(x, y)
+
+        turret.reset_tracking()
 
     else:
         print(f"Invalid mode: {data['mode']}")

@@ -159,6 +159,13 @@ class Stepper:
     def resume(self) -> None:
         self._move = True
 
+    def reset_tracking(self) -> None:
+        """
+        reset the steppers tracking (no offset, recommended after using 'move_at_speed')
+        """
+        self._target_absolute_step = 0
+        self._absolute_step = 0
+
     def wait_for_step(self) -> None:
         """
         waits until the stepper has reached its target
