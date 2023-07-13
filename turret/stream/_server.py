@@ -13,12 +13,24 @@ import numpy as np
 import socket
 import struct
 import time
-import cv2
 import io
+
+try:
+    import cv2
+    OPENCV = True
+
+except ImportError:
+    OPENCV = False
 
 
 class Server:
     running: bool = True
+
+    def __new__(cls, *args, **kwargs):
+        if not OPENCV:
+            raise RuntimeError("opencv module is not installed!")
+
+        return object.__new__(cls)
 
     def __init__(
             self,
@@ -84,12 +96,12 @@ class Server:
         """
         controls the turret movement
         """
-        connection.write(struct.pack('<i', target_found))
-        connection.write(struct.pack('<i', off_y))
-        connection.write(struct.pack('<i', off_x))
-
-        # close socket if loop finished
-        connection.close()
+        # connection.write(struct.pack('<i', target_found))
+        # connection.write(struct.pack('<i', off_y))
+        # connection.write(struct.pack('<i', off_x))
+        #
+        # # close socket if loop finished
+        # connection.close()
 
     def run(self) -> None:
         """

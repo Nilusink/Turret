@@ -7,11 +7,23 @@ _imager.py
 Author:
 Nilusink
 """
-from picamera import PiCamera
+try:
+    from picamera import PiCamera
+    PICAMERA = True
+
+except ImportError:
+    PICAMERA = False
+
 import io
 
 
 class Imager:
+    def __new__(cls, *args, **kwargs):
+        if not PICAMERA:
+            raise RuntimeError("picamera module is not installed!")
+
+        return object.__new__(cls)
+
     def __init__(
             self,
             camera_resolution: tuple[int, int],
