@@ -34,7 +34,7 @@ class Imager:
         self._cam.framerate = framerate
 
         self._stream = io.BytesIO()
-        self._capture = self._cam.capture_continuous(self._stream, 'jpeg', use_vieo_port=True)
+        self._capture = self._cam.capture_continuous(self._stream, 'jpeg', use_video_port=True)
 
     def get_image(self) -> tuple[int, bytes]:
         # update capture

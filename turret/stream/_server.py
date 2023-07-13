@@ -13,6 +13,7 @@ import typing as tp
 import numpy as np
 import socket
 import struct
+import json
 import time
 import io
 
@@ -35,7 +36,7 @@ class Server:
 
     def __init__(
             self,
-            image_callback: tp.Callable[[np.ndarray], tp.Tuple[bool, int, int]],
+            image_callback: tp.Callable[[np.ndarray], None],
             image_port: int = 8000,
             control_port: int = 8001,
             host: str = "0.0.0.0",
@@ -55,8 +56,10 @@ class Server:
         self._control_socket.bind((host, control_port))
         self._control_socket.listen()
 
+        self._control_connection: io.BufferedRWPair = ...
+
         # threading
-        self._pool = ThreadPoolExecutor(max_workers=2)
+        self.pool = ThreadPoolExecutor(max_workers=2)
 
     @print_traceback(print)
     def _run_image(self, connection: io.BufferedRWPair) -> None:
@@ -82,7 +85,8 @@ class Server:
             self._callback(image)
             took = (time.perf_counter() - start) * 1000
 
-            # Send an integer back to the Raspberry Pi
+            # Send an integer back to the Raspberry Pi (as confirmation that the server is done
+            connection.write(struct.pack('<i', 0))
             connection.flush()
 
             print(f"\rImage took {took:.2f}ms", end="", flush=True)
@@ -95,17 +99,6 @@ class Server:
         print("ool")
         connection.close()
 
-    def _run_control(self, connection: io.BufferedRWPair) -> None:
-        """
-        controls the turret movement
-        """
-        # connection.write(struct.pack('<i', target_found))
-        # connection.write(struct.pack('<i', off_y))
-        # connection.write(struct.pack('<i', off_x))
-        #
-        # # close socket if loop finished
-        # connection.close()
-
     def run(self) -> None:
         """
         run image and control threads
@@ -113,15 +106,19 @@ class Server:
         :rtype:
         """
         image_connection = self._image_socket.accept()[0].makefile("rwb")
-        control_connection = self._control_socket.accept()[0].makefile("rwb")
+        self._control_connection = self._control_socket.accept()[0].makefile("rwb")
 
-        self._pool.submit(self._run_image, image_connection)
-        # self._pool.submit(self._run_control, control_connection)
+        self.pool.submit(self._run_image, image_connection)
 
         # wait for both threads to exit
-        print("waiting for threads")
-        self._pool.shutdown()
-        print("threads done")
+        self.pool.shutdown()
+
+    def send_command(self, data: dict) -> None:
+        message = json.dumps(data).encode()
+
+        self._control_connection.write(struct.pack("<L", len(message)))
+        self._control_connection.flush()
+        self._control_connection.write(message)
 
     def close(self) -> None:
         """

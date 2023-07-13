@@ -12,6 +12,7 @@ from ..debugging import print_traceback
 from ..imager import Imager
 import socket
 import struct
+import json
 
 
 class Client:
@@ -40,19 +41,28 @@ class Client:
     def _run_image(self) -> None:
         connection = self._image_socket.makefile("rwb")
 
-        try:
-            while self.running:
-                # send image size and image
-                size, image = self._imager.get_image()
-                connection.write(struct.pack("<L", size))
-                connection.flush()
-                connection.write(image)
+        while self.running:
+            # send image size and image
+            size, image = self._imager.get_image()
+            connection.write(struct.pack("<L", size))
+            connection.flush()
+            connection.write(image)
 
-                # wait for the servers response
-                struct.unpack("<i", connection.read(struct.calcsize("<i")))
+            # wait for the servers response
+            struct.unpack("<i", connection.read(struct.calcsize("<i")))
 
-        except IOError:
-            self.close()
+        self.close()
+
+    @print_traceback(print)
+    def _run_control(self) -> None:
+        connection = self._control_socket.makefile("rwb")
+
+        while self.running:
+            message_len = struct.unpack("<L", connection.read(struct.calcsize("<L")))[0]
+            message = connection.read(message_len).decode()
+
+            data = json.loads(message)
+            print(data)
 
     def run(self) -> None:
         """

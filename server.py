@@ -13,142 +13,107 @@ import pygame as pg
 import numpy as np
 import cv2
 
+
 pg.init()
 pg.joystick.init()
-surf = pg.display.set_mode((1280, 720), flags=pg.RESIZABLE)
-
-throttle = None
-
-for i in range(pg.joystick.get_count()):
-    joystick = pg.joystick.Joystick(i)
-    joystick.init()
-
-    if "Throttle" in joystick.get_name():
-        print(f"Selected: {joystick.get_name()}")
-        throttle = joystick
-
-if throttle is None:
-    raise RuntimeError("Throttle is not available")
 
 
-class Designator:
-    max_speed = 30
+class Controller:
+    def __init__(self) -> None:
+        self._designator_size = 50
 
-    def __init__(self, width: int, height: int, size: int = 10) -> None:
-        self.x = int(width / 2)
-        self.y = int(height / 2)
+        self.surf = pg.display.set_mode((1280, 720), flags=pg.RESIZABLE)
 
-        self._max_width = width
-        self._max_height = height
+        # try to find the throttle
+        self.throttle = None
+        for i in range(pg.joystick.get_count()):
+            joystick = pg.joystick.Joystick(i)
+            joystick.init()
 
-        self.size = size
+            if "Throttle" in joystick.get_name():
+                print(f"Selected: {joystick.get_name()}")
+                self.throttle = joystick
 
-    @property
-    def position(self) -> tuple[int, int]:
-        return self.x, self.y
+        if self.throttle is None:
+            raise RuntimeError("Throttle is not available")
 
-    def move(self, x: float, y: float) -> None:
-        """
-        :param x: -1 to 1
-        :param y: -1 to 1
-        """
-        max_add = min(self._max_height, self._max_width) / self.max_speed
-        x_add = max_add * x
-        y_add = max_add * y
+        # initial images
+        self.surface_image = pg.Surface((0, 0))
+        self.last_image = ...
 
-        if abs(x) > .1:
-            res = self.x + x_add
-            if self.size / 2 < res < self._max_width - self.size / 2:
-                self.x += x_add
+        # server setup
+        self._server = Server(self.on_image, show_image=False)
+        self._server.run()
 
-            elif res < self.size / 2:
-                self.x = int(self.size / 2)
+    def _pg_loop(self) -> None:
+        # handle events
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                exit(0)
 
-            else:
-                self.x = self._max_width - int(self.size / 2)
+        pg.event.pump()
 
-        if abs(y) > .01:
-            res = self.y + y_add
-            if self.size / 2 < res < self._max_height - self.size / 2:
-                self.y += y_add
+        # fill background with image
+        self.surf.fill((0, 0, 0, 0))
+        self.surf.blit(self.surface_image, (0, 0))
 
-            elif res < self.size / 2:
-                self.y = int(self.size / 2)
+        # read joystick
+        x = self.throttle.get_axis(0)
+        y = self.throttle.get_axis(1)
+        target = self.throttle.get_button(5)
 
-            else:
-                self.y = self._max_height - int(self.size / 2)
+        up = self.throttle.get_button(6)
+        fw = self.throttle.get_button(7)
+        down = self.throttle.get_button(8)
+        back = self.throttle.get_button(9)
 
+        # get image size
+        image_height, image_width, _ = self.last_image.shape
 
-designator = Designator(1280, 720, 50)
+        if up:
+            self._designator_size += 10
 
+        elif down:
+            if self._designator_size > 10:
+                self._designator_size -= 10
 
-def on_image(image):
-    image = cv2.flip(image, 1)
-    image_height, image_width, _ = image.shape
+        if target:
+            detection_object = self.last_image[
+                               int(image_height / 2) - int(self._designator_size / 2)
+                               :int(image_height / 2) + int(self._designator_size / 2),
+                               int(image_width / 2) - int(self._designator_size / 2)
+                               :int(image_width / 2) + int(self._designator_size / 2)
+                               ]
+            cv2.imwrite("tmp.png", cv2.flip(detection_object, 1))
 
-    # convert image to pg surface
-    opencv_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    opencv_image_rotated = np.rot90(opencv_image)
+        pg.draw.rect(self.surf, (0, 0, 0, 1), pg.rect.Rect(
+            image_width - int(self._designator_size / 2),
+            image_height - int(self._designator_size / 2),
+            self._designator_size,
+            self._designator_size
+        ), width=4)
 
-    # Copy the resized image data to the Pygame surface
-    surface_image = pg.surfarray.make_surface(opencv_image_rotated)
+        pg.display.flip()
 
-    # handle events
-    for event in pg.event.get():
-        if event.type == pg.QUIT:
-            exit(0)
+        y *= 50 if abs(y) > .01 else 0
+        x *= 50 if abs(x) > .01 else 0
 
-    pg.event.pump()
+    def run(self) -> None:
+        self._server.pool.submit(self._pg_loop)
 
-    # fill background with image
-    surf.fill((0, 0, 0, 0))
-    surf.blit(surface_image, (0, 0))
+    def on_image(self, image: np.ndarray) -> None:
+        self.last_image = cv2.flip(image, 1)
 
-    # read joystick
-    x = throttle.get_axis(0)
-    y = throttle.get_axis(1)
-    target = throttle.get_button(5)
+        # convert self.last_image to pg surface
+        opencv_image = cv2.cvtColor(self.last_image, cv2.COLOR_BGR2RGB)
+        opencv_image_rotated = np.rot90(opencv_image)
 
-    up = throttle.get_button(6)
-    fw = throttle.get_button(7)
-    down = throttle.get_button(8)
-    back = throttle.get_button(9)
-
-    # designator.move(x, y)
-
-    if up:
-        designator.size += 10
-
-    elif down:
-        if designator.size > 10:
-            designator.size -= 10
-
-    if target:
-        detection_object = image[
-                           int(designator.y)-int(designator.size / 2)
-                           :int(designator.y)+int(designator.size / 2),
-                           int(image_width - designator.x)-int(designator.size / 2)
-                           :int(image_width - designator.x)+int(designator.size / 2)
-                           ]
-        cv2.imwrite("tmp.png", cv2.flip(detection_object, 1))
-
-    pg.draw.rect(surf, (0, 0, 0, 1), pg.rect.Rect(
-        designator.x - int(designator.size / 2),
-        designator.y - int(designator.size / 2),
-        designator.size,
-        designator.size
-    ), width=4)
-
-    pg.display.flip()
-
-    y *= 50 if abs(y) > .01 else 0
-    x *= 50 if abs(x) > .01 else 0
-
-    return True, int(y), int(x)
+        # Copy the resized image data to the Pygame surface
+        self.surface_image = pg.surfarray.make_surface(opencv_image_rotated)
 
 
 if __name__ == "__main__":
     # t = ImageProcessor()
 
-    s = Server(on_image, show_image=False)
-    s.run()
+    c = Controller()
+    c.run()
