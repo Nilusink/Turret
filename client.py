@@ -20,7 +20,8 @@ def control_callback(data) -> None:
 
     if data["mode"] == "off":  # offset
         turret.resume()
-        turret.move_steps_from_current(x, y)
+        if turret.is_done():
+            turret.move_steps_from_current(x, y)
 
     elif data["mode"] == "vel":  # velocity
         if abs(x) < .1 or abs(y) < .1:
