@@ -10,6 +10,7 @@ Nilusink
 from concurrent.futures import ThreadPoolExecutor
 from ..debugging import print_traceback
 from ..imager import Imager
+import typing as tp
 import socket
 import struct
 import json
@@ -21,6 +22,7 @@ class Client:
     def __init__(
             self,
             imager: Imager,
+            control_callback: tp.Callable[[dict], tp.Any],
             host: str,
             image_port: int = 8000,
             control_port: int = 8001
@@ -30,6 +32,7 @@ class Client:
         self._host = host
         self._image_port = image_port
         self._control_port = control_port
+        self._control_callback = control_callback
 
         self._image_socket = socket.socket()
         self._control_socket = socket.socket()
@@ -62,7 +65,7 @@ class Client:
             message = connection.read(message_len).decode()
 
             data = json.loads(message)
-            print(data)
+            self._control_callback(data)
 
     def run(self) -> None:
         """

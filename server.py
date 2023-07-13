@@ -103,10 +103,8 @@ class Controller:
 
             self._server.send_command({
                 "mode": "off",
-                "vel_x": x,
-                "vel_y": y,
-                "off_x": x,
-                "off_y": y
+                "x": x,
+                "y": y
             })
             self._clock.tick(60)
 

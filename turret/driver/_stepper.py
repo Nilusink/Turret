@@ -57,6 +57,7 @@ class Stepper:
     ) -> None:
         self._pins = pins
         self._step_count = step_count
+        self._last_speed = speed
         self.speed = speed
 
         # default values
@@ -97,6 +98,12 @@ class Stepper:
             step_delta = self._target_absolute_step - self._absolute_step
 
             if (step_delta != 0 or self._at_speed != 0) and self._move:
+
+                # if speed gets too small, skip step (may cause division by zero)
+                if self.speed < .01:
+                    time.sleep(.005)
+                    continue
+
                 match self._at_speed:
                     case 0:
                         if step_delta > 0:
@@ -130,10 +137,15 @@ class Stepper:
         self._target_absolute_step += steps
 
     def move_at_speed(self, speed: float) -> None:
+        self._last_speed = self.speed
         self.speed = abs(speed)
         self._at_speed = speed / abs(speed)
 
+        # in case the motor was stopped, resume
+        self._move = True
+
     def stop(self) -> None:
+        self.speed = self._last_speed
         self._at_speed = 0
         self._move = False
 
