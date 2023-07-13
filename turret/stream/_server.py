@@ -89,14 +89,13 @@ class Server:
             connection.write(struct.pack('<i', 0))
             connection.flush()
 
-            print(f"\rImage took {took:.2f}ms", end="", flush=True)
+            # print(f"\rImage took {took:.2f}ms", end="", flush=True)
 
             if self.show_image:
                 cv2.imshow('Image', image)
                 cv2.waitKey(1)
 
         # close socket if loop finished
-        print("ool")
         connection.close()
 
     def run(self) -> None:
@@ -110,6 +109,7 @@ class Server:
 
         self.pool.submit(self._run_image, image_connection)
 
+    def wait_for_threads(self) -> None:
         # wait for both threads to exit
         self.pool.shutdown()
 

@@ -73,6 +73,7 @@ class Client:
 
         # start threads and wait for them to finish
         self._pool.submit(self._run_image)
+        self._pool.submit(self._run_control)
         self._pool.shutdown()
 
     def close(self) -> None:
