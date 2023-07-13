@@ -168,7 +168,7 @@ class Stepper:
         """
         checks if the stepper is on the set position
         """
-        return abs(self._target_absolute_step - self._absolute_step) < 1
+        return self._target_absolute_step - self._absolute_step == 0
 
     def wait_for_step(self) -> None:
         """
