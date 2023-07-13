@@ -25,6 +25,7 @@ class Controller:
 
         size = (1280, 720)
         self.surf = pg.display.set_mode(size, flags=pg.RESIZABLE)
+        self._clock = pg.time.Clock()
 
         # try to find the throttle
         self.throttle = None
@@ -54,8 +55,6 @@ class Controller:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     exit(0)
-
-            pg.event.pump()
 
             # fill background with image
             self.surf.fill((0, 0, 0, 0))
@@ -102,7 +101,14 @@ class Controller:
             y *= 50 if abs(y) > .01 else 0
             x *= 50 if abs(x) > .01 else 0
 
-            self._server.send_command({"x_off": x, "y_off": y})
+            self._server.send_command({
+                "mode": "off",
+                "vel_x": x,
+                "vel_y": y,
+                "off_x": x,
+                "off_y": y
+            })
+            self._clock.tick(60)
 
     def run(self) -> None:
         self._server.pool.submit(self._pg_loop)
