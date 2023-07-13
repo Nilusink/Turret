@@ -53,21 +53,36 @@ class Stepper:
             self,
             pins: tp.Tuple[tp.SupportsIndex, tp.SupportsIndex, tp.SupportsIndex, tp.SupportsIndex],
             step_count: int = 4096,
-            step_sleep: float = 0.002,
+            speed: float = 500,
     ) -> None:
         self._pins = pins
         self._step_count = step_count
-        self._step_sleep = step_sleep
+        self.speed = speed
 
         # default values
         self._target_absolute_step = 0
         self._absolute_step = 0
+        self._at_speed = 0
+        self._move = True
 
         # threading
         self.pool = ThreadPoolExecutor(max_workers=1)
         self.pool.submit(self._thread)
 
         self._setup_pins()
+
+    @property
+    def target(self) -> int:
+        """
+        the targeted step
+        """
+        return self._target_absolute_step
+
+    def current(self) -> int:
+        """
+        the current step
+        """
+        return self._absolute_step
 
     def _setup_pins(self) -> None:
         """
@@ -81,18 +96,29 @@ class Stepper:
         while self.running:
             step_delta = self._target_absolute_step - self._absolute_step
 
-            if step_delta != 0:
-                if step_delta > 0:
-                    self._absolute_step += 1
+            if step_delta != 0 and self._move:
+                match self._at_speed:
+                    case 0:
+                        if step_delta > 0:
+                            self._absolute_step += 1
 
-                else:
-                    self._absolute_step -= 1
+                        else:
+                            self._absolute_step -= 1
+
+                    case -1:
+                        self._absolute_step -= 1
+
+                    case 1:
+                        self._absolute_step += 1
+
+                    case _:
+                        raise ValueError(f"Invalid value for \"at_speed\": {self._at_speed}")
 
                 current_step = STEP_SEQUENCE[self._absolute_step % 8]
                 for pin_index, pin in enumerate(self._pins):
                     GPIO.output(pin, current_step[pin_index])
 
-                time.sleep(self._step_sleep)
+                time.sleep(1 / self.speed)
 
             else:
                 time.sleep(.005)
@@ -102,6 +128,17 @@ class Stepper:
         step n amount of steps
         """
         self._target_absolute_step += steps
+
+    def move_at_speed(self, speed: float) -> None:
+        self.speed = abs(speed)
+        self._at_speed = speed / abs(speed)
+
+    def stop(self) -> None:
+        self._at_speed = 0
+        self._move = False
+
+    def resume(self) -> None:
+        self._move = True
 
     def wait_for_step(self) -> None:
         """
@@ -129,6 +166,8 @@ if __name__ == "__main__":
 
     time.sleep(5)
 
-    s.step(-1000)
-    s.wait_for_step()
+    s.move_at_speed(-400)
+    time.sleep(5)
+    s.stop()
+
     s.cleanup()
