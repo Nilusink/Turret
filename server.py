@@ -22,6 +22,7 @@ pg.joystick.init()
 class Controller:
     def __init__(self) -> None:
         self._designator_size = 50
+        self._designator_speed = 50
 
         size = (1280, 720)
         self.surf = pg.display.set_mode(size, flags=pg.RESIZABLE)
@@ -56,10 +57,6 @@ class Controller:
                 if event.type == pg.QUIT:
                     exit(0)
 
-            # fill background with image
-            self.surf.fill((0, 0, 0, 0))
-            self.surf.blit(self.surface_image, (0, 0))
-
             # read joystick
             x = self.throttle.get_axis(0)
             y = self.throttle.get_axis(1)
@@ -70,9 +67,7 @@ class Controller:
             down = self.throttle.get_button(8)
             back = self.throttle.get_button(9)
 
-            # get image size
-            image_height, image_width, _ = self.last_image.shape
-
+            # designator size
             if up:
                 self._designator_size += 10
 
@@ -80,8 +75,39 @@ class Controller:
                 if self._designator_size > 10:
                     self._designator_size -= 10
 
+            # designator speed
+            if back:
+                if self._designator_speed < 50:
+                    self._designator_speed += 1
+
+            elif fw:
+                if self._designator_speed > 1:
+                    self._designator_speed -= 1
+
+            # get image size
+            image_height, image_width, _ = self.last_image.shape
+
+            # zoom
+            x_zoom = int(((50 - self._designator_speed) / 150) * image_width)
+            y_zoom = int(((50 - self._designator_speed) / 150) * image_height)
+            img = self.last_image[
+                y_zoom:image_height - y_zoom,
+                x_zoom:image_width - x_zoom
+            ]
+            img = cv2.resize(img, (image_width, image_height))
+
+            # convert self.last_image to pg surface
+            opencv_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            opencv_image_rotated = np.rot90(opencv_image)
+
+            # Copy the resized image data to the Pygame surface
+            self.surface_image = pg.surfarray.make_surface(opencv_image_rotated)
+
+            # fill background with image
+            self.surf.blit(self.surface_image, (0, 0))
+
             if target:
-                detection_object = self.last_image[
+                detection_object = img[
                                    int(image_height / 2) - int(self._designator_size / 2)
                                    :int(image_height / 2) + int(self._designator_size / 2),
                                    int(image_width / 2) - int(self._designator_size / 2)
@@ -89,24 +115,42 @@ class Controller:
                                    ]
                 cv2.imwrite("tmp.png", cv2.flip(detection_object, 1))
 
+            # draw designator
             pg.draw.rect(self.surf, (0, 0, 0, 1), pg.rect.Rect(
-                image_width - int(self._designator_size / 2),
-                image_height - int(self._designator_size / 2),
+                (image_width / 2) - int(self._designator_size / 2),
+                (image_height / 2) - int(self._designator_size / 2),
                 self._designator_size,
                 self._designator_size
             ), width=4)
 
+            # draw speed / zoom indicator
+            pg.draw.line(
+                self.surf,
+                (0, 0, 0, 1),
+                (40, 20),
+                (40, 220),
+                width=3
+            )
+            y_pos = 20 + self._designator_speed / 50 * 200
+            pg.draw.line(
+                self.surf,
+                (0, 0, 0, 1),
+                (20, y_pos),
+                (60, y_pos),
+                width=3
+            )
+
             pg.display.flip()
 
-            y *= 50 if abs(y) > .01 else 0
-            x *= 50 if abs(x) > .01 else 0
+            y *= self._designator_speed if abs(y) > .01 else 0
+            x *= self._designator_speed if abs(x) > .01 else 0
 
             self._server.send_command({
                 "mode": "off",
                 "x": x,
                 "y": y
             })
-            self._clock.tick(60)
+            self._clock.tick(32)
 
     def run(self) -> None:
         self._server.pool.submit(self._pg_loop)
@@ -114,13 +158,6 @@ class Controller:
 
     def on_image(self, image: np.ndarray) -> None:
         self.last_image = cv2.flip(image, 1)
-
-        # convert self.last_image to pg surface
-        opencv_image = cv2.cvtColor(self.last_image, cv2.COLOR_BGR2RGB)
-        opencv_image_rotated = np.rot90(opencv_image)
-
-        # Copy the resized image data to the Pygame surface
-        self.surface_image = pg.surfarray.make_surface(opencv_image_rotated)
 
 
 if __name__ == "__main__":

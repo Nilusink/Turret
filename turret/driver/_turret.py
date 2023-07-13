@@ -31,3 +31,7 @@ class Turret:
     def resume(self) -> None:
         self.x_stepper.resume()
         self.y_stepper.resume()
+
+    def cleanup(self) -> None:
+        self.x_stepper.cleanup()
+        self.y_stepper.cleanup()

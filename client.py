@@ -40,3 +40,4 @@ if __name__ == "__main__":
         "127.0.0.1"
     )
     client.run()
+    turret.cleanup()
