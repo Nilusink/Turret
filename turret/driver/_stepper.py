@@ -12,10 +12,11 @@ import typing as tp
 import time
 
 try:
-    import RP.GPIO as GPIO
+    import RPi.GPIO as GPIO
     PIGPIO = True
 
 except ImportError:
+    GPIO = ...
     PIGPIO = False
 
 
@@ -61,10 +62,10 @@ class Stepper:
         # default values
         self._target_absolute_step = 0
         self._absolute_step = 0
-        self._stepper_step = 0
 
         # threading
         self.pool = ThreadPoolExecutor(max_workers=1)
+        self.pool.submit(self._thread)
 
         self._setup_pins()
 
@@ -83,13 +84,11 @@ class Stepper:
             if step_delta != 0:
                 if step_delta > 0:
                     self._absolute_step += 1
-                    self._stepper_step = (self._stepper_step + 1) % len(STEP_SEQUENCE)
 
                 else:
                     self._absolute_step -= 1
-                    self._stepper_step = (self._stepper_step - 1) % len(STEP_SEQUENCE)
 
-                current_step = STEP_SEQUENCE[self._stepper_step]
+                current_step = STEP_SEQUENCE[self._absolute_step % 8]
                 for pin_index, pin in enumerate(self._pins):
                     GPIO.output(pin, current_step[pin_index])
 
@@ -125,7 +124,11 @@ class Stepper:
 if __name__ == "__main__":
     from _pinout import X_MOTOR_PINS
     s = Stepper(X_MOTOR_PINS)
-    s.step(200)
+    s.step(1000)
     s.wait_for_step()
-    s.step(-200)
+
+    time.sleep(5)
+
+    s.step(-1000)
     s.wait_for_step()
+    s.cleanup()
