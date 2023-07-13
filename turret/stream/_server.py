@@ -7,6 +7,7 @@ _server.py
 Author:
 Nilusink
 """
+from concurrent.futures import ThreadPoolExecutor
 import typing as tp
 import numpy as np
 import socket
@@ -22,24 +23,32 @@ class Server:
     def __init__(
             self,
             image_callback: tp.Callable[[np.ndarray], tp.Tuple[bool, int, int]],
-            port: int = 8000,
+            image_port: int = 8000,
+            control_port: int = 8001,
             host: str = "0.0.0.0",
             show_image: bool = False
     ) -> None:
         self._callback = image_callback
         self.show_image = show_image
 
-        self._socket = socket.socket()
-        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._socket.bind((host, port))
-        self._socket.listen()
+        # socket setup
+        self._image_socket = socket.socket()
+        self._image_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._image_socket.bind((host, image_port))
+        self._image_socket.listen()
 
-    def run(self) -> None:
+        self._control_socket = socket.socket()
+        self._control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._control_socket.bind((host, control_port))
+        self._control_socket.listen()
+
+        # threading
+        self._pool = ThreadPoolExecutor(max_workers=2)
+
+    def _run_image(self, connection: io.BufferedRWPair) -> None:
         """
         run the server
         """
-        connection = self._socket.accept()[0].makefile("rwb")
-
         while self.running:
             # Read the length of the image as a 32-bit unsigned int
             image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
@@ -56,17 +65,51 @@ class Server:
             image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
 
             start = time.perf_counter()
-            target_found, off_y, off_x = self._callback(image)
+            self._callback(image)
             took = (time.perf_counter() - start) * 1000
 
             # Send an integer back to the Raspberry Pi
-            connection.write(struct.pack('<i', target_found))
-            connection.write(struct.pack('<i', off_y))
-            connection.write(struct.pack('<i', off_x))
             connection.flush()
 
-            print(f"\rtook {took:.2f}ms", end="", flush=True)
+            print(f"\rImage took {took:.2f}ms", end="", flush=True)
 
             if self.show_image:
                 cv2.imshow('Image', image)
                 cv2.waitKey(1)
+
+        # close socket if loop finished
+        connection.close()
+
+    def _run_control(self, connection: io.BufferedRWPair) -> None:
+        """
+        controls the turret movement
+        """
+        connection.write(struct.pack('<i', target_found))
+        connection.write(struct.pack('<i', off_y))
+        connection.write(struct.pack('<i', off_x))
+
+        # close socket if loop finished
+        connection.close()
+
+    def run(self) -> None:
+        """
+        run image and control threads
+        :return:
+        :rtype:
+        """
+        image_connection = self._image_socket.accept()[0].makefile("rwb")
+        control_connection = self._control_socket.accept()[0].makefile("rwb")
+
+        self._pool.submit(self._run_image, image_connection)
+        # self._pool.submit(self._run_control, control_connection)
+
+        # wait for both threads to exit
+        self._pool.shutdown()
+
+    def close(self) -> None:
+        """
+        shuts down the server
+        """
+        self._image_socket.close()
+        self._control_socket.close()
+        self.running = False

@@ -108,7 +108,7 @@ def process_red(img):
     # Get the largest contour, which should correspond to the red circle
     if contours:
         largest_contour = max(contours, key=cv2.contourArea)
-        (x,y), radius = cv2.minEnclosingCircle(largest_contour)
+        (x, y), radius = cv2.minEnclosingCircle(largest_contour)
         center = (int(x), int(y))
         radius = int(radius)
 
@@ -163,6 +163,7 @@ try:
         cv2.waitKey(1)
 
         # Send an integer back to the Raspberry Pi
+        target_found = False
         connection.write(struct.pack('<i', target_found))
         connection.write(struct.pack('<i', off_y))
         connection.write(struct.pack('<i', off_x))

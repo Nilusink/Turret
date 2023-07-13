@@ -29,7 +29,6 @@ while True:
 
     pg.event.pump()
     surf.fill((0, 0, 0, 0))
-    
 
     num_axes = throttle.get_numaxes()
     num_buttons = throttle.get_numbuttons()

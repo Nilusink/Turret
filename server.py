@@ -83,6 +83,9 @@ designator = Designator(1280, 720, 50)
 
 
 def on_image(image):
+    image = cv2.flip(image, 1)
+    image_height, image_width, _ = image.shape
+
     # convert image to pg surface
     opencv_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     opencv_image_rotated = np.rot90(opencv_image)
@@ -111,8 +114,7 @@ def on_image(image):
     down = throttle.get_button(8)
     back = throttle.get_button(9)
 
-    print(x, y, target, up, fw, down, back)
-    designator.move(x, y)
+    # designator.move(x, y)
 
     if up:
         designator.size += 10
@@ -123,8 +125,10 @@ def on_image(image):
 
     if target:
         detection_object = image[
-                           int(designator.y)-int(designator.size / 2):int(designator.y)+int(designator.size / 2),
-                           int(1280 - designator.x)-int(designator.size / 2):int(1280 - designator.x)+int(designator.size / 2)
+                           int(designator.y)-int(designator.size / 2)
+                           :int(designator.y)+int(designator.size / 2),
+                           int(image_width - designator.x)-int(designator.size / 2)
+                           :int(image_width - designator.x)+int(designator.size / 2)
                            ]
         cv2.imwrite("tmp.png", cv2.flip(detection_object, 1))
 
@@ -137,7 +141,10 @@ def on_image(image):
 
     pg.display.flip()
 
-    return True, 0, 0
+    y *= 50 if abs(y) > .01 else 0
+    x *= 50 if abs(x) > .01 else 0
+
+    return True, int(y), int(x)
 
 
 if __name__ == "__main__":

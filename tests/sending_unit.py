@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 from picamera.array import PiRGBArray
 from traceback import print_exc
-from picamera import PiCamera
 from threading import Thread
 import RPi.GPIO as GPIO
 import math
