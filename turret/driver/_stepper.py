@@ -96,7 +96,7 @@ class Stepper:
         while self.running:
             step_delta = self._target_absolute_step - self._absolute_step
 
-            if step_delta != 0 and self._move:
+            if (step_delta != 0 or self._at_speed != 0) and self._move:
                 match self._at_speed:
                     case 0:
                         if step_delta > 0:
