@@ -8,6 +8,7 @@ Author:
 Nilusink
 """
 from concurrent.futures import ThreadPoolExecutor
+from ..debugging import print_traceback
 import typing as tp
 import numpy as np
 import socket
@@ -57,6 +58,7 @@ class Server:
         # threading
         self._pool = ThreadPoolExecutor(max_workers=2)
 
+    @print_traceback(print)
     def _run_image(self, connection: io.BufferedRWPair) -> None:
         """
         run the server
@@ -90,6 +92,7 @@ class Server:
                 cv2.waitKey(1)
 
         # close socket if loop finished
+        print("ool")
         connection.close()
 
     def _run_control(self, connection: io.BufferedRWPair) -> None:
@@ -116,7 +119,9 @@ class Server:
         # self._pool.submit(self._run_control, control_connection)
 
         # wait for both threads to exit
+        print("waiting for threads")
         self._pool.shutdown()
+        print("threads done")
 
     def close(self) -> None:
         """

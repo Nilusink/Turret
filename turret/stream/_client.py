@@ -8,8 +8,8 @@ Author:
 Nilusink
 """
 from concurrent.futures import ThreadPoolExecutor
+from ..debugging import print_traceback
 from ..imager import Imager
-import typing as tp
 import socket
 import struct
 
@@ -36,6 +36,7 @@ class Client:
         # threading
         self._pool = ThreadPoolExecutor(max_workers=2)
 
+    @print_traceback(print)
     def _run_image(self) -> None:
         connection = self._image_socket.makefile("rwb")
 
