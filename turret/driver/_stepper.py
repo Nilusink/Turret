@@ -98,6 +98,7 @@ class Stepper:
             step_delta = self._target_absolute_step - self._absolute_step
 
             if (step_delta != 0 or self._at_speed != 0) and self._move:
+                print(f"step delta: ", step_delta)
 
                 # if speed gets too small, skip step (may cause division by zero)
                 if self.speed < .01:
@@ -135,6 +136,12 @@ class Stepper:
         step n amount of steps
         """
         self._target_absolute_step += steps
+
+    def step_from_current(self, steps: int) -> None:
+        """
+        step n amounts of steps, but starting from the motors current position
+        """
+        self._target_absolute_step = self._absolute_step + steps
 
     def move_at_speed(self, speed: float) -> None:
         self._last_speed = self.speed

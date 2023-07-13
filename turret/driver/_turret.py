@@ -20,6 +20,10 @@ class Turret:
         self.x_stepper.step(x)
         self.y_stepper.step(y)
 
+    def move_steps_from_current(self, x: int, y: int) -> None:
+        self.x_stepper.step_from_current(x)
+        self.y_stepper.step_from_current(y)
+
     def move_velocity(self, x: float, y: float) -> None:
         self.x_stepper.move_at_speed(x)
         self.y_stepper.move_at_speed(y)

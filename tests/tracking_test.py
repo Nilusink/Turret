@@ -8,7 +8,7 @@ initial_bbox = None
 tracking = False
 
 # Create an object tracker (e.g., KCF tracker)
-tracker = cv2.TrackerKCF()
+tracker = cv2.TrackerKCF_create()
 
 while True:
     # Capture frame from the video stream
@@ -24,6 +24,7 @@ while True:
         key = cv2.waitKey(1) & 0xFF
         if key == ord('p'):
             bbox = cv2.selectROI('Frame', frame, fromCenter=False, showCrosshair=True)
+            print(bbox, frame.shape)
             initial_bbox = bbox
             print(1)
             tracker.init(frame, bbox)
