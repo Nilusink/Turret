@@ -38,7 +38,7 @@ class Imager:
 
     def get_image(self) -> tuple[int, bytes]:
         # update capture
-        self._capture.next()
+        next(self._capture)
 
         # get size
         size = self._stream.tell()
