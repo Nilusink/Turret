@@ -7,7 +7,7 @@ server.pg
 Author:
 Nilusink
 """
-from turret.processor import pixel_to_angle, CameraConfiguration
+from turret.processor import pixel_to_angle, CameraConfiguration, sharpen_image
 from turret.debugging import print_traceback
 from turret.stream import Server
 # from turret.processor import ImageProcessor
@@ -21,11 +21,15 @@ pg.init()
 pg.joystick.init()
 
 
+TRACKER = cv2.TrackerCSRT_create
+
+
 class Controller:
     def __init__(self) -> None:
         self._designator_size = 50
         self._designator_speed = 500
         self._max_designator_speed = 500
+        self._last_buttons: tuple[bool, bool, bool, bool, bool] = (False, False, False, False, False)
 
         self._cam_config = CameraConfiguration(
             vertical_fov=math.radians(41.41),
@@ -54,7 +58,7 @@ class Controller:
         self.last_image = np.empty((*size, 3), dtype=np.uint8)
 
         # tracker setup
-        self.tracker = cv2.TrackerKCF_create()
+        self.tracker = TRACKER()
 
         # server setup
         self._server = Server(self.on_image, show_image=False)
@@ -118,23 +122,21 @@ class Controller:
             # fill background with image
             self.surf.blit(self.surface_image, (0, 0))
 
-            if target and not track:
-                # detection_object = img[
-                #                    int(image_height / 2) - int(self._designator_size / 2)
-                #                    :int(image_height / 2) + int(self._designator_size / 2),
-                #                    int(image_width / 2) - int(self._designator_size / 2)
-                #                    :int(image_width / 2) + int(self._designator_size / 2)
-                #                    ]
-                # cv2.imwrite("tmp.png", cv2.flip(detection_object, 1))
-                bbox = [
-                    int(image_width / 2) - int(self._designator_size / 2),
-                    int(image_height / 2) - int(self._designator_size / 2),
-                    self._designator_size,
-                    self._designator_size
-                ]
-                print(bbox, img.shape)
-                self.tracker.init(img, bbox)
-                track = True
+            if target and not self._last_buttons[0]:
+                if track:
+                    self.tracker = TRACKER()
+                    track = False
+
+                else:
+                    bbox = [
+                        int(image_width / 2) - int(self._designator_size / 2),
+                        int(image_height / 2) - int(self._designator_size / 2),
+                        self._designator_size,
+                        self._designator_size
+                    ]
+                    print(bbox, img.shape)
+                    self.tracker.init(img, bbox)
+                    track = True
 
             if track:
                 success, bbox = self.tracker.update(img)
@@ -144,16 +146,30 @@ class Controller:
                     # Draw bounding box on the frame
                     (bx, by, w, h) = [int(v) for v in bbox]
 
-                    pg.draw.rect(
+                    # pg.draw.rect(
+                    #     self.surf,
+                    #     (255, 0, 0, 1),
+                    #     pg.rect.Rect(
+                    #         image_width - bx - w,
+                    #         by,
+                    #         w,
+                    #         h
+                    #     ),
+                    #     width=2
+                    # )
+
+                    pg.draw.circle(
                         self.surf,
                         (255, 0, 0, 1),
-                        pg.rect.Rect(
-                            image_width - bx - w,
-                            by,
-                            w,
-                            h
-                        ),
-                        width=2
+                        (image_width - bx - w / 2, by + h / 2),
+                        5
+                    )
+                    pg.draw.line(
+                        self.surf,
+                        (255, 0, 0, 1),
+                        (image_width / 2, image_height / 2),
+                        (image_width - bx - w / 2, by + h / 2),
+                        2
                     )
 
                     theta1 = pixel_to_angle(
@@ -172,7 +188,7 @@ class Controller:
                 y_off, x_off = int(4096 * (theta1 / 360)), int(4096 * (theta2 / 360))
                 self._server.send_command({
                     "mode": "off",
-                    "x": x_off,
+                    "x": -x_off,
                     "y": y_off
                 })
 
@@ -187,12 +203,43 @@ class Controller:
                 })
 
             # draw designator
-            pg.draw.rect(self.surf, (0, 0, 0, 1), pg.rect.Rect(
-                (image_width / 2) - int(self._designator_size / 2),
-                (image_height / 2) - int(self._designator_size / 2),
-                self._designator_size,
-                self._designator_size
-            ), width=4)
+            if track:
+                pg.draw.line(  # top line
+                    self.surf,
+                    (0, 0, 0, 1),
+                    (image_width / 2, image_height / 2 - self._designator_size),
+                    (image_width / 2, image_height / 2 - self._designator_size / 2),
+                    width=4
+                )
+                pg.draw.line(  # right line
+                    self.surf,
+                    (0, 0, 0, 1),
+                    (image_width / 2 + self._designator_size / 2, image_height / 2),
+                    (image_width / 2 + self._designator_size, image_height / 2),
+                    width=4
+                )
+                pg.draw.line(  # bottom line
+                    self.surf,
+                    (0, 0, 0, 1),
+                    (image_width / 2, image_height / 2 + self._designator_size / 2),
+                    (image_width / 2, image_height / 2 + self._designator_size),
+                    width=4
+                )
+                pg.draw.line(  # right line
+                    self.surf,
+                    (0, 0, 0, 1),
+                    (image_width / 2 - self._designator_size, image_height / 2),
+                    (image_width / 2 - self._designator_size / 2, image_height / 2),
+                    width=4
+                )
+
+            else:
+                pg.draw.rect(self.surf, (0, 0, 0, 1), pg.rect.Rect(
+                    (image_width / 2) - int(self._designator_size / 2),
+                    (image_height / 2) - int(self._designator_size / 2),
+                    self._designator_size,
+                    self._designator_size
+                ), width=4)
 
             # draw speed / zoom indicator
             pg.draw.line(
@@ -212,15 +259,17 @@ class Controller:
             )
 
             pg.display.flip()
-
             self._clock.tick(32)
+
+            self._last_buttons = (target, up, fw, down, back)
 
     def run(self) -> None:
         self._server.pool.submit(self._pg_loop)
         self._server.wait_for_threads()
 
     def on_image(self, image: np.ndarray) -> None:
-        self.last_image = cv2.flip(image, 1)
+        image = cv2.flip(image, 1)
+        self.last_image = image
 
 
 if __name__ == "__main__":

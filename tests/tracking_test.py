@@ -8,13 +8,15 @@ initial_bbox = None
 tracking = False
 
 # Create an object tracker (e.g., KCF tracker)
-tracker = cv2.TrackerKCF_create()
+tracker = cv2.TrackerCSRT_create()
 
 while True:
     # Capture frame from the video stream
     ret, frame = stream.read()
     if not ret:
         break
+
+
 
     # Preprocess the frame if necessary (e.g., resize, convert color space, apply filters)
 

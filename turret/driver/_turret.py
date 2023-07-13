@@ -7,8 +7,9 @@ combines the two stepper motors
 Author:
 Nilusink
 """
-from ._stepper import Stepper
 from ._pinout import X_MOTOR_PINS, Y_MOTOR_PINS
+from ._stepper import Stepper
+import time
 
 
 class Turret:
@@ -39,6 +40,16 @@ class Turret:
     def reset_tracking(self) -> None:
         self.x_stepper.reset_tracking()
         self.y_stepper.reset_tracking()
+
+    def is_done(self) -> bool:
+        return self.x_stepper.is_done() and self.y_stepper.is_done()
+
+    def wait_for_step(self) -> None:
+        """
+        waits until the stepper has reached its target
+        """
+        while not self.is_done():
+            time.sleep(.01)
 
     def cleanup(self) -> None:
         self.x_stepper.cleanup()

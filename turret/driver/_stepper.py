@@ -98,8 +98,6 @@ class Stepper:
             step_delta = self._target_absolute_step - self._absolute_step
 
             if (step_delta != 0 or self._at_speed != 0) and self._move:
-                print(f"step delta: ", step_delta)
-
                 # if speed gets too small, skip step (may cause division by zero)
                 if self.speed < .01:
                     time.sleep(.005)
@@ -166,11 +164,17 @@ class Stepper:
         self._target_absolute_step = 0
         self._absolute_step = 0
 
+    def is_done(self) -> bool:
+        """
+        checks if the stepper is on the set position
+        """
+        return self._target_absolute_step - self._absolute_step == 0
+
     def wait_for_step(self) -> None:
         """
         waits until the stepper has reached its target
         """
-        while self._target_absolute_step - self._absolute_step != 0:
+        while not self.is_done():
             time.sleep(.01)
 
     def cleanup(self) -> None:
